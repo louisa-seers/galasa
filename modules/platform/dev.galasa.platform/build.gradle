@@ -1,6 +1,7 @@
 plugins {
     id 'java-platform'
     id 'maven-publish'
+    id 'signing'
 }
 
 version = "0.38.0"
@@ -9,9 +10,6 @@ javaPlatform {
     allowDependencies()
 }
 
-
-
-        
 dependencies {
     constraints {
         api 'com.auth0:java-jwt:4.4.0' // used by wrapper.
@@ -54,6 +52,9 @@ dependencies {
         api 'dev.galasa:dev.galasa:0.34.0'
         api 'dev.galasa:dev.galasa.framework:'+version
         api 'dev.galasa:dev.galasa.platform:'+version
+        api 'dev.galasa:dev.galasa.plugin.common:'+version
+        api 'dev.galasa:dev.galasa.plugin.common.impl:'+version
+        api 'dev.galasa:dev.galasa.plugin.common.test:'+version
         api 'dev.galasa:dev.galasa.wrapping.com.auth0.jwt:'+version
         api 'dev.galasa:dev.galasa.wrapping.gson:'+version
         api 'dev.galasa:dev.galasa.wrapping.httpclient-osgi:'+version
@@ -125,7 +126,16 @@ dependencies {
         api 'org.apache.logging.log4j:log4j-core:2.24.1' // If updating, also update in galasa-boot build.gradle.
         api 'org.apache.logging.log4j:log4j-slf4j-impl:2.24.1'
 
+        api 'org.apache.maven:maven-artifact:3.9.6'
+        api 'org.apache.maven:maven-compat:3.6.2'
+        api 'org.apache.maven:maven-plugin-api:3.6.2'
         api 'org.apache.maven:maven-repository-metadata:3.3.9'
+
+        api 'org.apache.maven.plugin-testing:maven-plugin-testing-harness:3.3.0'
+
+        api 'org.apache.maven.plugin-tools:maven-plugin-annotations:3.11.0'
+
+        api 'org.apache.maven.shared:maven-shared-utils:3.4.2'
 
         api 'org.apache.tomcat:annotations-api:6.0.53'
 
@@ -172,6 +182,17 @@ dependencies {
     }
 }
 
+signing {
+    def signingKeyId = findProperty("signingKeyId")
+    def signingKey = findProperty("signingKey")
+    def signingPassword = findProperty("signingPassword")
+    useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+    sign publishing.publications
+}
+
+tasks.withType(Sign) {
+    onlyIf { isMainOrRelease.toBoolean() }
+}
 
 publishing {
     publications {
@@ -181,6 +202,31 @@ publishing {
             groupId = 'dev.galasa'
             artifactId = 'dev.galasa.platform'
             version = "0.38.0"
+
+            pom.withXml {
+                asNode().appendNode('build').appendNode('pluginManagement').appendNode('plugins').with {
+                    appendNode('plugin').with {
+                        appendNode('groupId', 'org.apache.maven.plugins')
+                        appendNode('artifactId', 'maven-plugin-plugin')
+                        appendNode('version', '3.15.1')
+                    }
+                    appendNode('plugin').with {
+                        appendNode('groupId', 'org.apache.maven.plugins')
+                        appendNode('artifactId', 'maven-compiler-plugin')
+                        appendNode('version', '3.13.0')
+                    }
+                    appendNode('plugin').with {
+                        appendNode('groupId', 'org.apache.maven.plugins')
+                        appendNode('artifactId', 'maven-gpg-plugin')
+                        appendNode('version', '1.5')
+                    }
+                    appendNode('plugin').with {
+                        appendNode('groupId', 'com.google.code.maven-replacer-plugin')
+                        appendNode('artifactId', 'maven-replacer-plugin')
+                        appendNode('version', '1.4.0')
+                    }
+                }
+            }
         }
 
         // mavenBom(MavenPublication) {
